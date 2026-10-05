@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Forja\Console\Kernel;
+use Forja\Foundation\Application;
+
+// Procura o autoload do Composer tanto no repositório do framework quanto
+// quando instalado como dependência (vendor/bin/forja).
+foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php'] as $autoload) {
+    if (is_file($autoload)) {
+        require $autoload;
+
+        break;
+    }
+}
+
+$app = Application::create((string) getcwd());
+
+exit(new Kernel($app)->run());

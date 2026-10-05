@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Forja\Routing\Attribute\Route;
+
+#[Route('{{ route }}', name: '{{ name }}')]
+final class {{ class }}
+{
+    public function __invoke(): string
+    {
+        return '{{ class }}';
+    }
+}

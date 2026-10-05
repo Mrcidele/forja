@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Forja\Routing\Attribute\Group;
+use Forja\Routing\Attribute\Route;
+use Psr\Http\Message\ServerRequestInterface;
+
+#[Group(prefix: '{{ route }}', name: '{{ name }}.')]
+final class {{ class }}
+{
+    #[Route('/', name: 'index')]
+    public function index(): array
+    {
+        return [];
+    }
+
+    #[Route('/{id:int}', name: 'show')]
+    public function show(int $id): array
+    {
+        return ['id' => $id];
+    }
+
+    #[Route('/', methods: ['POST'], name: 'store')]
+    public function store(ServerRequestInterface $request): array
+    {
+        return (array) $request->getParsedBody();
+    }
+}

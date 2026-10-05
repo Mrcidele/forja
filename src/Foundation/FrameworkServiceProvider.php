@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Forja\Foundation;
 
-use Closure;
 use Forja\Cache\FileCache;
 use Forja\Config\AppConfig;
 use Forja\Config\Config;
@@ -28,11 +27,10 @@ use Forja\Http\Middleware\RateLimitMiddleware;
 use Forja\Http\RequestFactory;
 use Forja\Http\ResponseFactory;
 use Forja\RateLimit\RateLimiter;
-use Forja\Routing\AttributeRouteLoader;
 use Forja\Routing\ControllerInvoker;
 use Forja\Routing\RouteCache;
-use Forja\Routing\RouteCollection;
 use Forja\Routing\RouteHandler;
+use Forja\Routing\RouteLoader;
 use Forja\Routing\Router;
 use Forja\Session\CacheSessionStore;
 use Forja\Session\SessionOptions;
@@ -40,7 +38,6 @@ use Forja\Session\SessionStoreInterface;
 use InvalidArgumentException;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\SimpleCache\CacheInterface;
-use RuntimeException;
 
 /**
  * Registra os serviços centrais do framework a partir da configuração.
@@ -136,33 +133,17 @@ final class FrameworkServiceProvider extends ServiceProvider
     {
         $app = $this->app;
 
-        $container->singleton(Router::class, static function (Config $config, Container $container) use ($app): Router {
+        $container->singleton(Router::class, static function (RouteLoader $loader) use ($app): Router {
             $cache = $app->cachePath('routes.php');
 
-            if (is_file($cache)) {
-                return Router::fromCompiled(RouteCache::load($cache));
-            }
-
-            $router = new Router();
-            $loader = new AttributeRouteLoader();
-
-            foreach (self::strings($config->array('routing.controllers', [])) as $directory) {
-                $loader->loadDirectory($router->routes(), $directory);
-            }
-
-            foreach (self::strings($config->array('routing.files', [])) as $file) {
-                $definition = require $file;
-
-                if (! $definition instanceof Closure) {
-                    throw new RuntimeException(sprintf('O arquivo de rotas [%s] deve retornar uma closure que recebe a RouteCollection.', $file));
-                }
-
-                $container->call($definition, [RouteCollection::class => $router->routes()]);
-            }
-
-            return $router;
+            return is_file($cache) ? Router::fromCompiled(RouteCache::load($cache)) : $loader->router();
         });
 
+        $container->singleton(RouteLoader::class, static fn (Config $config, Container $container): RouteLoader => new RouteLoader(
+            $container,
+            self::strings($config->array('routing.controllers', [])),
+            self::strings($config->array('routing.files', [])),
+        ));
         $container->singleton(ControllerInvoker::class);
         $container->singleton(RouteHandler::class);
     }

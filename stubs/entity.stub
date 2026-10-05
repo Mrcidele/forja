@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use DateTimeImmutable;
+use Forja\Database\ORM\Attribute\Column;
+use Forja\Database\ORM\Attribute\Id;
+use Forja\Database\ORM\Attribute\Table;
+
+#[Table('{{ table }}')]
+final class {{ class }}
+{
+    #[Id]
+    public ?int $id = null;
+
+    public function __construct(
+        #[Column] public ?DateTimeImmutable $createdAt = null,
+    ) {
+    }
+}

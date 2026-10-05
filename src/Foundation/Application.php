@@ -29,6 +29,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 final class Application
 {
+    public const string VERSION = '0.1.0';
+
     public readonly Container $container;
 
     private bool $bootstrapped = false;
