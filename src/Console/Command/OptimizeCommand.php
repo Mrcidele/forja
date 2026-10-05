@@ -10,13 +10,15 @@ use Forja\Foundation\Application;
 use Forja\Routing\Route;
 use Forja\Routing\RouteCache;
 use Forja\Routing\RouteLoader;
+use Forja\Runtime\Preloader;
+use ReflectionClass;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'optimize', description: 'Gera os caches de produção: configuração, rotas e container')]
+#[AsCommand(name: 'optimize', description: 'Gera os caches de produção: configuração, rotas, container e preload do OPcache')]
 final class OptimizeCommand extends Command
 {
     public function __construct(
@@ -38,7 +40,21 @@ final class OptimizeCommand extends Command
         new ContainerCompiler()->dump($this->compilableClasses($router->compiled()->routes), $this->app->cachePath('container.php'));
         $output->writeln('<info>Container compilado.</info>');
 
+        new Preloader()->dump(
+            [dirname((string) new ReflectionClass(Application::class)->getFileName(), 2), $this->app->basePath('app')],
+            $this->autoloadPath(),
+            $this->app->cachePath('preload.php'),
+        );
+        $output->writeln(sprintf('<info>Script de preload do OPcache gerado em %s.</info>', $this->app->cachePath('preload.php')));
+
         return self::SUCCESS;
+    }
+
+    private function autoloadPath(): string
+    {
+        $application = $this->app->basePath('vendor/autoload.php');
+
+        return is_file($application) ? $application : dirname((string) new ReflectionClass(Application::class)->getFileName(), 3) . '/vendor/autoload.php';
     }
 
     /**

@@ -119,6 +119,14 @@ final class Application
         return $response;
     }
 
+    /**
+     * Limpa o estado de requisição dos serviços compartilhados (worker mode).
+     */
+    public function resetState(): void
+    {
+        $this->container->resetServices();
+    }
+
     public function config(): Config
     {
         return $this->container->get(Config::class);

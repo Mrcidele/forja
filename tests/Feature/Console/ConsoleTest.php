@@ -142,14 +142,14 @@ it('otimiza para produção e limpa os caches', function (): void {
 
     $display = runCommand($this, 'optimize')->getDisplay();
 
-    expect($display)->toContain('Configuração em cache.')->toContain('Rotas em cache.')->toContain('Container compilado.')
+    expect($display)->toContain('Configuração em cache.')->toContain('Rotas em cache.')->toContain('Container compilado.')->toContain('preload')
         ->and(file_get_contents($this->basePath . '/var/cache/container.php'))->toContain('HomeController');
 
     $optimized = Application::create($this->basePath);
 
     expect((string) $optimized->handle(new Nyholm\Psr7\ServerRequest('GET', '/'))->getBody())->toBe('Bem-vindo à Forja Fixture');
 
-    expect(runCommand($this, 'cache:clear')->getDisplay())->toContain('3 arquivo(s)')
+    expect(runCommand($this, 'cache:clear')->getDisplay())->toContain('4 arquivo(s)')
         ->and(glob($this->basePath . '/var/cache/*'))->toBe([]);
 });
 

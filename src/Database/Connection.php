@@ -7,6 +7,7 @@ namespace Forja\Database;
 use BackedEnum;
 use Closure;
 use DateTimeInterface;
+use Forja\Container\ResettableInterface;
 use Forja\Database\Exception\QueryException;
 use Forja\Database\Query\Builder;
 use Forja\Database\Query\Grammar\Grammar;
@@ -25,7 +26,7 @@ use Throwable;
  *
  * O PDO é criado na primeira consulta.
  */
-final class Connection
+final class Connection implements ResettableInterface
 {
     private ?PDO $pdo;
 
@@ -241,6 +242,19 @@ final class Connection
     public function listen(Closure $listener): void
     {
         $this->listeners[] = $listener;
+    }
+
+    /**
+     * Desfaz transações deixadas abertas por uma requisição que falhou,
+     * mantendo a conexão para a próxima (worker mode).
+     */
+    public function reset(): void
+    {
+        if ($this->pdo instanceof \PDO && $this->pdo->inTransaction()) {
+            $this->pdo->rollBack();
+        }
+
+        $this->transactions = 0;
     }
 
     /**

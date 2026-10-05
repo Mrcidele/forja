@@ -227,6 +227,19 @@ final class Container implements ContainerInterface
     }
 
     /**
+     * Chama reset() nos serviços já instanciados que implementam
+     * ResettableInterface (usado entre requisições em worker mode).
+     */
+    public function resetServices(): void
+    {
+        foreach ($this->instances as $instance) {
+            if ($instance instanceof ResettableInterface) {
+                $instance->reset();
+            }
+        }
+    }
+
+    /**
      * Carrega fábricas geradas pelo ContainerCompiler, que substituem a
      * reflection na construção das classes compiladas.
      *
