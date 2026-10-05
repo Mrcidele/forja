@@ -43,6 +43,7 @@ final readonly class ControllerInvoker
             : new ReflectionMethod($callable[0], $callable[1]);
 
         $arguments = [
+            ...$this->objectAttributes($request),
             ServerRequestInterface::class => $request,
             RequestInterface::class => $request,
             Route::class => $route,
@@ -67,6 +68,25 @@ final readonly class ControllerInvoker
         $controller = $this->container->get($class);
 
         return [$controller, $method];
+    }
+
+    /**
+     * Atributos da requisição registrados pelo nome da classe (ex.: a sessão)
+     * ficam disponíveis para injeção por tipo.
+     *
+     * @return array<string, object>
+     */
+    private function objectAttributes(ServerRequestInterface $request): array
+    {
+        $objects = [];
+
+        foreach ($request->getAttributes() as $name => $value) {
+            if (is_string($name) && is_object($value) && (class_exists($name) || interface_exists($name))) {
+                $objects[$name] = $value;
+            }
+        }
+
+        return $objects;
     }
 
     /**

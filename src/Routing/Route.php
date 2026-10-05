@@ -6,6 +6,7 @@ namespace Forja\Routing;
 
 use Closure;
 use Forja\Routing\Exception\InvalidRouteException;
+use Psr\Http\Server\MiddlewareInterface;
 
 /**
  * Definição imutável de uma rota.
@@ -22,12 +23,14 @@ final readonly class Route
     /**
      * @param list<string> $methods
      * @param Handler $handler
+     * @param list<class-string<MiddlewareInterface>> $middleware executados antes do handler, na ordem
      */
     public function __construct(
         array $methods,
         string $path,
         public Closure|string|array $handler,
         public ?string $name = null,
+        public array $middleware = [],
     ) {
         if ($methods === []) {
             throw new InvalidRouteException(sprintf('A rota [%s] precisa de ao menos um método HTTP.', $path));
@@ -67,10 +70,10 @@ final readonly class Route
     /**
      * Permite que var_export() reconstrua a rota a partir do cache.
      *
-     * @param array{methods: list<string>, path: string, handler: Handler, name: string|null} $state
+     * @param array{methods: list<string>, path: string, handler: Handler, name: string|null, middleware: list<class-string<MiddlewareInterface>>} $state
      */
     public static function __set_state(array $state): self
     {
-        return new self($state['methods'], $state['path'], $state['handler'], $state['name']);
+        return new self($state['methods'], $state['path'], $state['handler'], $state['name'], $state['middleware']);
     }
 }

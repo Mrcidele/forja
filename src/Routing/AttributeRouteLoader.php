@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Forja\Routing;
 
 use Forja\Routing\Attribute\Group;
+use Forja\Routing\Attribute\Middleware;
 use Forja\Routing\Attribute\Route as RouteAttribute;
 use Forja\Support\ClassFinder;
+use Psr\Http\Server\MiddlewareInterface;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * Lê os atributos #[Route] e #[Group] dos controllers e registra as rotas.
+ * Lê os atributos #[Route], #[Group] e #[Middleware] dos controllers e registra as rotas.
  */
 final readonly class AttributeRouteLoader
 {
@@ -43,10 +45,11 @@ final readonly class AttributeRouteLoader
         }
 
         $group = ($reflection->getAttributes(Group::class)[0] ?? null)?->newInstance() ?? new Group();
+        $classMiddleware = [...$group->middleware, ...$this->middleware($reflection)];
 
         $routes->group($group->prefix, function (RouteCollection $routes) use ($reflection, $class): void {
             foreach ($this->routeAttributes($reflection) as $attribute) {
-                $routes->add($attribute->methods, $attribute->path, $class, $attribute->name);
+                $routes->add($attribute->methods, $attribute->path, $class, $attribute->name, $attribute->middleware);
             }
 
             foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
@@ -55,11 +58,19 @@ final readonly class AttributeRouteLoader
                     continue;
                 }
 
+                $methodMiddleware = $this->middleware($method);
+
                 foreach ($this->routeAttributes($method) as $attribute) {
-                    $routes->add($attribute->methods, $attribute->path, [$class, $method->getName()], $attribute->name);
+                    $routes->add(
+                        $attribute->methods,
+                        $attribute->path,
+                        [$class, $method->getName()],
+                        $attribute->name,
+                        [...$methodMiddleware, ...$attribute->middleware],
+                    );
                 }
             }
-        }, $group->name);
+        }, $group->name, $classMiddleware);
     }
 
     /**
@@ -73,5 +84,21 @@ final readonly class AttributeRouteLoader
             static fn (ReflectionAttribute $attribute): RouteAttribute => $attribute->newInstance(),
             $reflection->getAttributes(RouteAttribute::class),
         );
+    }
+
+    /**
+     * @param ReflectionClass<object>|ReflectionMethod $reflection
+     *
+     * @return list<class-string<MiddlewareInterface>>
+     */
+    private function middleware(ReflectionClass|ReflectionMethod $reflection): array
+    {
+        $middleware = [];
+
+        foreach ($reflection->getAttributes(Middleware::class) as $attribute) {
+            $middleware = [...$middleware, ...$attribute->newInstance()->middleware];
+        }
+
+        return $middleware;
     }
 }

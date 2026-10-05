@@ -75,3 +75,17 @@ it('expõe a rota e os parâmetros como atributos da requisição', function ():
 
     expect(body($this->handler->handle(new ServerRequest('GET', '/attrs/7'))))->toBe(['id' => 7, 'route' => true]);
 });
+
+it('executa os middlewares da rota antes do controller', function (): void {
+    $this->handler = new RouteHandler($this->router, new ControllerInvoker(new Container()), new Container());
+
+    expect(body($this->handler->handle(new ServerRequest('GET', '/protected/trace'))))->toBe(['first', 'second', 'third'])
+        ->and(body($this->handler->handle(new ServerRequest('GET', '/protected/method'))))->toBe(['first', 'second', 'third']);
+});
+
+it('injeta atributos da requisição registrados por classe', function (): void {
+    $this->router->routes()->get('/clock', static fn (DateTimeImmutable $now): string => $now->format('Y'));
+    $request = new ServerRequest('GET', '/clock')->withAttribute(DateTimeImmutable::class, new DateTimeImmutable('2030-01-01'));
+
+    expect((string) $this->handler->handle($request)->getBody())->toBe('2030');
+});

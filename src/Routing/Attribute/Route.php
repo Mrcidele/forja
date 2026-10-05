@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forja\Routing\Attribute;
 
 use Attribute;
+use Psr\Http\Server\MiddlewareInterface;
 
 /**
  * Declara uma rota em um método de controller (ou numa classe invocável).
@@ -19,11 +20,13 @@ final readonly class Route
 
     /**
      * @param list<string>|string $methods
+     * @param list<class-string<MiddlewareInterface>> $middleware
      */
     public function __construct(
         public string $path,
         array|string $methods = ['GET'],
         public ?string $name = null,
+        public array $middleware = [],
     ) {
         $this->methods = is_string($methods) ? [$methods] : $methods;
     }
