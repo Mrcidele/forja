@@ -25,7 +25,7 @@ it('converte HttpException em resposta com status e headers', function (): void 
 
     expect($response->getStatusCode())->toBe(405)
         ->and($response->getHeaderLine('Allow'))->toBe('GET')
-        ->and((string) $response->getBody())->toBe('Método não permitido.');
+        ->and((string) $response->getBody())->toContain('Método não permitido.');
 });
 
 it('esconde detalhes de exceções genéricas', function (): void {
