@@ -66,7 +66,8 @@ jobs:
 
       - name: Apontar forja/framework para o código deste repositório
         if: matrix.app == 'skeleton'
-        run: composer config repositories.framework '{"type": "path", "url": "..", "options": {"symlink": true, "versions": {"forja/framework": "0.1.0"}}}'
+        run: |
+          composer config repositories.framework '{"type": "path", "url": "..", "options": {"symlink": true, "versions": {"forja/framework": "0.1.0"}}}'
 
       - name: Instalar dependências
         run: composer update --no-interaction --no-progress --prefer-dist
