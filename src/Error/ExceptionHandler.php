@@ -9,6 +9,7 @@ use Forja\Http\Exception\UnprocessableEntityHttpException;
 use Forja\Http\ResponseFactory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -30,11 +31,21 @@ class ExceptionHandler implements ExceptionHandlerInterface
         protected readonly array $apiPrefixes = ['/api'],
         protected readonly ResponseFactory $responses = new ResponseFactory(),
         protected readonly DebugPageRenderer $debugPage = new DebugPageRenderer(),
+        protected readonly ?LoggerInterface $logger = null,
     ) {
     }
 
+    /**
+     * Registra no log as falhas do servidor; erros do cliente (HttpException
+     * com status abaixo de 500) não são relatados.
+     */
     public function report(Throwable $exception): void
     {
+        if ($exception instanceof HttpException && $exception->getStatusCode() < 500) {
+            return;
+        }
+
+        $this->logger?->error($exception->getMessage() !== '' ? $exception->getMessage() : $exception::class, ['exception' => $exception]);
     }
 
     public function render(Throwable $exception, ServerRequestInterface $request): ResponseInterface

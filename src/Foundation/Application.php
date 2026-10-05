@@ -14,9 +14,12 @@ use Forja\Container\ContainerCompiler;
 use Forja\Container\ServiceProvider;
 use Forja\Error\ErrorHandler;
 use Forja\Http\Emitter\EmitterInterface;
+use Forja\Http\Event\RequestReceived;
+use Forja\Http\Event\ResponseSent;
 use Forja\Http\Kernel;
 use Forja\Http\RequestFactory;
 use InvalidArgumentException;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -86,6 +89,8 @@ final class Application
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
+        $this->container->get(EventDispatcherInterface::class)->dispatch(new RequestReceived($request));
+
         return $this->container->get(Kernel::class)->handle($request);
     }
 
@@ -95,9 +100,23 @@ final class Application
     public function run(): void
     {
         $this->container->get(ErrorHandler::class)->register();
-        $request = $this->container->get(RequestFactory::class)->fromGlobals();
+        $this->send($this->container->get(RequestFactory::class)->fromGlobals());
+    }
 
-        $this->container->get(EmitterInterface::class)->emit($this->handle($request));
+    /**
+     * Atende a requisição, emite a resposta e dispara ResponseSent.
+     */
+    public function send(ServerRequestInterface $request): ResponseInterface
+    {
+        $start = hrtime(true);
+        $response = $this->handle($request);
+        $this->container->get(EmitterInterface::class)->emit($response);
+
+        $this->container->get(EventDispatcherInterface::class)->dispatch(
+            new ResponseSent($request, $response, (hrtime(true) - $start) / 1_000_000),
+        );
+
+        return $response;
     }
 
     public function config(): Config

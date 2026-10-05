@@ -11,6 +11,7 @@ use Forja\Container\Container;
 use Forja\Container\ServiceProvider;
 use Forja\Database\Connection;
 use Forja\Database\DatabaseConfig;
+use Forja\Database\Event\QueryExecuted;
 use Forja\Database\Migrations\MigrationRepository;
 use Forja\Database\Migrations\Migrator;
 use Forja\Database\ORM\EntityManager;
@@ -18,6 +19,8 @@ use Forja\Database\Schema\Schema;
 use Forja\Error\ErrorHandler;
 use Forja\Error\ExceptionHandler;
 use Forja\Error\ExceptionHandlerInterface;
+use Forja\Events\EventDispatcher;
+use Forja\Events\ListenerProvider;
 use Forja\Http\Emitter\EmitterInterface;
 use Forja\Http\Emitter\SapiEmitter;
 use Forja\Http\Kernel;
@@ -26,6 +29,9 @@ use Forja\Http\Middleware\CsrfMiddleware;
 use Forja\Http\Middleware\RateLimitMiddleware;
 use Forja\Http\RequestFactory;
 use Forja\Http\ResponseFactory;
+use Forja\Log\Handler\StreamHandler;
+use Forja\Log\Level;
+use Forja\Log\Logger;
 use Forja\RateLimit\RateLimiter;
 use Forja\Routing\ControllerInvoker;
 use Forja\Routing\RouteCache;
@@ -36,7 +42,10 @@ use Forja\Session\CacheSessionStore;
 use Forja\Session\SessionOptions;
 use Forja\Session\SessionStoreInterface;
 use InvalidArgumentException;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\EventDispatcher\ListenerProviderInterface;
 use Psr\Http\Server\MiddlewareInterface;
+use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -51,6 +60,7 @@ final class FrameworkServiceProvider extends ServiceProvider
 
     public function register(Container $container): void
     {
+        $this->registerEventsAndLogging($container);
         $this->registerHttp($container);
         $this->registerErrors($container);
         $this->registerStorage($container);
@@ -72,11 +82,49 @@ final class FrameworkServiceProvider extends ServiceProvider
         ));
     }
 
+    private function registerEventsAndLogging(Container $container): void
+    {
+        $app = $this->app;
+
+        $container->singleton(ListenerProvider::class, static function (Config $config, Container $container): ListenerProvider {
+            $provider = new ListenerProvider($container);
+
+            foreach ($config->array('events.listeners', []) as $event => $listeners) {
+                if (! is_string($event) || ! class_exists($event) && ! interface_exists($event)) {
+                    throw new InvalidArgumentException(sprintf('Evento inválido em events.listeners: [%s].', is_string($event) ? $event : get_debug_type($event)));
+                }
+
+                foreach (is_array($listeners) ? $listeners : [$listeners] as $listener) {
+                    if (is_string($listener) && class_exists($listener)) {
+                        $provider->listen($event, $listener);
+                    } elseif (is_callable($listener)) {
+                        $provider->listen($event, $listener);
+                    } else {
+                        throw new InvalidArgumentException(sprintf('Ouvinte inválido para o evento [%s].', $event));
+                    }
+                }
+            }
+
+            return $provider;
+        });
+        $container->bind(ListenerProviderInterface::class, ListenerProvider::class);
+        $container->singleton(EventDispatcherInterface::class, static fn (ListenerProvider $provider): EventDispatcher => new EventDispatcher($provider));
+
+        $container->singleton(LoggerInterface::class, static fn (Config $config, AppConfig $appConfig): Logger => new Logger(
+            $config->string('logging.channel', strtolower(preg_replace('/\W+/', '-', $appConfig->name) ?? 'app')),
+            [new StreamHandler(
+                $config->string('logging.path', $app->storagePath('logs/forja.log')),
+                Level::fromName($config->string('logging.level', 'debug')),
+            )],
+        ));
+    }
+
     private function registerErrors(Container $container): void
     {
-        $container->singleton(ExceptionHandlerInterface::class, static fn (AppConfig $app, Config $config): ExceptionHandler => new ExceptionHandler(
+        $container->singleton(ExceptionHandlerInterface::class, static fn (AppConfig $app, Config $config, LoggerInterface $logger): ExceptionHandler => new ExceptionHandler(
             debug: $app->debug,
             apiPrefixes: array_values(array_filter($config->array('http.api_prefixes', ['/api']), is_string(...))),
+            logger: $logger,
         ));
 
         $container->singleton(ErrorHandler::class);
@@ -152,16 +200,21 @@ final class FrameworkServiceProvider extends ServiceProvider
     {
         $app = $this->app;
 
-        $container->singleton(Connection::class, static function (Config $config): Connection {
+        $container->singleton(Connection::class, static function (Config $config, EventDispatcherInterface $events): Connection {
             $name = $config->string('database.default', 'sqlite');
-            $connection = $config->get('database.connections.' . $name);
+            $settings = $config->get('database.connections.' . $name);
 
-            if (! is_array($connection)) {
+            if (! is_array($settings)) {
                 throw new InvalidArgumentException(sprintf('Conexão de banco [%s] não configurada em database.connections.', $name));
             }
 
-            /** @var array<string, mixed> $connection */
-            return new Connection(DatabaseConfig::fromArray($connection));
+            /** @var array<string, mixed> $settings */
+            $connection = new Connection(DatabaseConfig::fromArray($settings));
+            $connection->listen(static function (string $sql, array $bindings, float $time) use ($events, $connection): void {
+                $events->dispatch(new QueryExecuted($sql, $bindings, $time, $connection->driver()));
+            });
+
+            return $connection;
         });
 
         $container->singleton(Schema::class);
