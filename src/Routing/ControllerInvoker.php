@@ -158,7 +158,7 @@ final readonly class ControllerInvoker
         $objects = [];
 
         foreach ($request->getAttributes() as $name => $value) {
-            if (is_string($name) && is_object($value) && (class_exists($name) || interface_exists($name))) {
+            if (is_string($name) && is_object($value) && (class_exists($name, false) || interface_exists($name, false))) {
                 $objects[$name] = $value;
             }
         }
