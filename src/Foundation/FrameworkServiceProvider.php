@@ -41,6 +41,9 @@ use Forja\Routing\Router;
 use Forja\Session\CacheSessionStore;
 use Forja\Session\SessionOptions;
 use Forja\Session\SessionStoreInterface;
+use Forja\Validation\DtoMapper;
+use Forja\Validation\Validator;
+use Forja\View\Engine;
 use InvalidArgumentException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\EventDispatcher\ListenerProviderInterface;
@@ -67,6 +70,19 @@ final class FrameworkServiceProvider extends ServiceProvider
         $this->registerMiddleware($container);
         $this->registerRouting($container);
         $this->registerDatabase($container);
+        $this->registerViews($container);
+    }
+
+    private function registerViews(Container $container): void
+    {
+        $app = $this->app;
+
+        $container->singleton(Engine::class, static fn (Config $config): Engine => new Engine(
+            self::strings($config->array('view.paths', [$app->basePath('resources/views')])),
+            $app->cachePath('views'),
+        ));
+        $container->singleton(Validator::class);
+        $container->singleton(DtoMapper::class);
     }
 
     private function registerHttp(Container $container): void

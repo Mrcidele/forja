@@ -7,8 +7,13 @@ namespace Forja\Routing;
 use BackedEnum;
 use Closure;
 use Forja\Container\Container;
+use Forja\Http\Exception\BadRequestHttpException;
 use Forja\Http\Exception\NotFoundHttpException;
 use Forja\Http\ResponseFactory;
+use Forja\Routing\Attribute\FromBody;
+use Forja\Routing\Attribute\FromQuery;
+use Forja\Validation\DtoMapper;
+use LogicException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -29,6 +34,7 @@ final readonly class ControllerInvoker
     public function __construct(
         private Container $container,
         private ResponseFactory $responses = new ResponseFactory(),
+        private DtoMapper $mapper = new DtoMapper(),
     ) {
     }
 
@@ -48,6 +54,7 @@ final readonly class ControllerInvoker
             RequestInterface::class => $request,
             Route::class => $route,
             ...$this->convertParameters($reflection, $parameters),
+            ...$this->mapRequestData($reflection, $request),
         ];
 
         return $this->responses->fromValue($this->container->call($callable, $arguments));
@@ -68,6 +75,76 @@ final readonly class ControllerInvoker
         $controller = $this->container->get($class);
 
         return [$controller, $method];
+    }
+
+    /**
+     * Parâmetros marcados com #[FromBody] ou #[FromQuery] recebem um DTO
+     * preenchido e validado a partir da requisição.
+     *
+     * @return array<string, object>
+     */
+    private function mapRequestData(ReflectionFunctionAbstract $reflection, ServerRequestInterface $request): array
+    {
+        $mapped = [];
+
+        foreach ($reflection->getParameters() as $parameter) {
+            $fromBody = $parameter->getAttributes(FromBody::class) !== [];
+            $fromQuery = $parameter->getAttributes(FromQuery::class) !== [];
+            $type = $parameter->getType();
+
+            if (! $fromBody && ! $fromQuery) {
+                continue;
+            }
+
+            if (! $type instanceof ReflectionNamedType || $type->isBuiltin() || ! class_exists($type->getName())) {
+                throw new LogicException(sprintf('O parâmetro $%s precisa ser tipado com uma classe para usar #[FromBody]/#[FromQuery].', $parameter->getName()));
+            }
+
+            $data = $fromBody ? $this->payload($request) : $request->getQueryParams();
+            $mapped[$parameter->getName()] = $this->mapper->map($type->getName(), $data);
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * Corpo da requisição como array: formulário já interpretado ou JSON.
+     *
+     * @return array<mixed>
+     */
+    private function payload(ServerRequestInterface $request): array
+    {
+        $parsed = $request->getParsedBody();
+
+        if (is_array($parsed) && $parsed !== []) {
+            return $parsed;
+        }
+
+        $raw = (string) $request->getBody();
+
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $contentType = strtolower($request->getHeaderLine('Content-Type'));
+
+        if (str_contains($contentType, 'json')) {
+            $data = json_decode($raw, true);
+
+            if (! is_array($data)) {
+                throw new BadRequestHttpException('O corpo da requisição não é um JSON válido.');
+            }
+
+            return $data;
+        }
+
+        if (str_contains($contentType, 'application/x-www-form-urlencoded')) {
+            parse_str($raw, $data);
+
+            return $data;
+        }
+
+        return [];
     }
 
     /**
