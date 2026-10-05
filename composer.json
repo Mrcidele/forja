@@ -2,13 +2,20 @@
     "name": "forja/framework",
     "description": "Framework PHP minimalista construído sobre as PSRs.",
     "type": "library",
-    "keywords": ["framework", "psr-7", "psr-11", "psr-15"],
+    "keywords": ["framework", "psr-7", "psr-11", "psr-14", "psr-15", "attributes", "orm"],
+    "homepage": "https://github.com/Mrcidele/forja",
+    "license": "MIT",
     "authors": [
         {
             "name": "Caio Tsutiya Marcidele",
             "email": "caiomarcidele@gmail.com"
         }
     ],
+    "support": {
+        "issues": "https://github.com/Mrcidele/forja/issues",
+        "source": "https://github.com/Mrcidele/forja",
+        "docs": "https://github.com/Mrcidele/forja/tree/main/docs"
+    },
     "require": {
         "php": "^8.4",
         "nyholm/psr7": "^1.8",
@@ -29,6 +36,12 @@
         "pestphp/pest": "^5.3",
         "phpstan/phpstan": "^2.2",
         "rector/rector": "^2.6"
+    },
+    "provide": {
+        "psr/container-implementation": "2.0",
+        "psr/event-dispatcher-implementation": "1.0",
+        "psr/log-implementation": "3.0",
+        "psr/simple-cache-implementation": "3.0"
     },
     "autoload": {
         "psr-4": {

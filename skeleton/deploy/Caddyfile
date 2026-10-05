@@ -1,0 +1,17 @@
+# FrankenPHP em worker mode: a aplicação sobe uma vez por worker e atende
+# várias requisições. Gere os caches antes: php forja optimize
+{
+	frankenphp {
+		worker {
+			file /app/public/worker.php
+			num 4
+			env MAX_REQUESTS 1000
+		}
+	}
+}
+
+{$SERVER_NAME:localhost} {
+	root * /app/public
+	encode zstd br gzip
+	php_server
+}

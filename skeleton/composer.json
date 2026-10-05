@@ -1,0 +1,38 @@
+{
+    "name": "forja/app",
+    "description": "Estrutura inicial de uma aplicação Forja.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4",
+        "forja/framework": "^0.1"
+    },
+    "require-dev": {
+        "pestphp/pest": "^5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "serve": "@php -S localhost:8000 -t public",
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

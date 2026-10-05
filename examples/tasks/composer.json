@@ -1,0 +1,50 @@
+{
+    "name": "forja/example-tasks",
+    "description": "App de demonstração do Forja: API de tarefas com quadro web.",
+    "type": "project",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../..",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "forja/framework": "0.1.0"
+                }
+            }
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "forja/framework": "^0.1"
+    },
+    "require-dev": {
+        "pestphp/pest": "^5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "serve": "@php -S localhost:8000 -t public",
+        "test": "pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
