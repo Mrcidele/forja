@@ -1,0 +1,53 @@
+{
+    "name": "forja/framework",
+    "description": "Framework PHP minimalista construído sobre as PSRs.",
+    "type": "library",
+    "keywords": ["framework", "psr-7", "psr-11", "psr-15"],
+    "authors": [
+        {
+            "name": "Caio Tsutiya Marcidele",
+            "email": "caiomarcidele@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.32",
+        "pestphp/pest": "^5.3",
+        "phpstan/phpstan": "^2.2",
+        "rector/rector": "^2.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Forja\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Forja\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "lint": "pint --test",
+        "format": "pint",
+        "refactor": "rector process",
+        "refactor:check": "rector process --dry-run",
+        "check": [
+            "@lint",
+            "@refactor:check",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
