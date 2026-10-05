@@ -10,6 +10,12 @@ use Forja\Config\AppConfig;
 use Forja\Config\Config;
 use Forja\Container\Container;
 use Forja\Container\ServiceProvider;
+use Forja\Database\Connection;
+use Forja\Database\DatabaseConfig;
+use Forja\Database\Migrations\MigrationRepository;
+use Forja\Database\Migrations\Migrator;
+use Forja\Database\ORM\EntityManager;
+use Forja\Database\Schema\Schema;
 use Forja\Error\ErrorHandler;
 use Forja\Error\ExceptionHandler;
 use Forja\Error\ExceptionHandlerInterface;
@@ -53,6 +59,7 @@ final class FrameworkServiceProvider extends ServiceProvider
         $this->registerStorage($container);
         $this->registerMiddleware($container);
         $this->registerRouting($container);
+        $this->registerDatabase($container);
     }
 
     private function registerHttp(Container $container): void
@@ -158,6 +165,32 @@ final class FrameworkServiceProvider extends ServiceProvider
 
         $container->singleton(ControllerInvoker::class);
         $container->singleton(RouteHandler::class);
+    }
+
+    private function registerDatabase(Container $container): void
+    {
+        $app = $this->app;
+
+        $container->singleton(Connection::class, static function (Config $config): Connection {
+            $name = $config->string('database.default', 'sqlite');
+            $connection = $config->get('database.connections.' . $name);
+
+            if (! is_array($connection)) {
+                throw new InvalidArgumentException(sprintf('Conexão de banco [%s] não configurada em database.connections.', $name));
+            }
+
+            /** @var array<string, mixed> $connection */
+            return new Connection(DatabaseConfig::fromArray($connection));
+        });
+
+        $container->singleton(Schema::class);
+        $container->singleton(EntityManager::class);
+        $container->singleton(MigrationRepository::class);
+        $container->singleton(Migrator::class, static fn (Connection $connection, MigrationRepository $repository, Config $config): Migrator => new Migrator(
+            $connection,
+            $repository,
+            $config->string('database.migrations', $app->basePath('database/migrations')),
+        ));
     }
 
     /**

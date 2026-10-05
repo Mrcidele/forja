@@ -44,3 +44,20 @@ function removeDirectory(string $directory): void
 
     rmdir($directory);
 }
+
+function sqlite(): Forja\Database\Connection
+{
+    return new Forja\Database\Connection(new Forja\Database\DatabaseConfig('sqlite', ':memory:'));
+}
+
+/**
+ * Conexão SQLite em memória com as tabelas users, posts e tags.
+ */
+function sqliteWithSchema(): Forja\Database\Connection
+{
+    $connection = sqlite();
+    $define = require __DIR__ . '/Fixtures/Database/schema.php';
+    $define(new Forja\Database\Schema\Schema($connection));
+
+    return $connection;
+}
